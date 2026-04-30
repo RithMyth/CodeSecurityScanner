@@ -1,5 +1,5 @@
 # =================================================
-# SECURITY SCANNER PRO (FULL VERSION + COLORS + FIX)
+# SECURITY SCANNER (FULL VERSION + COLORS + FIX)
 # =================================================
 import ast
 import re
@@ -14,7 +14,7 @@ GREEN = "\033[92m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 
-# 1. DEINE VOLLSTÄNDIGE GEFAHRENLISTE (Original-Texte)
+# 1. VOLLSTÄNDIGE GEFAHRENLISTE 
 gefahren = {
     # --- 1. CODE AUSFÜHRUNG (RCE) & MALWARE-TRICKS ---
     r"(eval|exec|compile)\s*\(": "KRITISCH: RCE Risiko! LÖSUNG: Nutze ast.literal_eval() für Daten oder Dictionary-Mapping.",
