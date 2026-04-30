@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS-spezifische Dateien
+.DS_Store
+Thumbs.db
+
+# Projekt-spezifisch (Dein Scanner-Report)
+SicherheitsReport.txt
+
+# Virtuelle Umgebungen
+venv/
+env/
+.env
