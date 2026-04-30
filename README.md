@@ -16,6 +16,4 @@ Ein leistungsstarker, statischer Sicherheits-Scanner für Python-Projekte. Diese
    
 ```bash
 
-git clone
-[https://github.com/RithMyth/CodeSecurityScanner.git]  (https://github.com/RithMyth/CodeSecurityScanner.git)
- cd CodeSecurityScanner
+git clone [https://github.com/RithMyth/CodeSecurityScanner.git]
