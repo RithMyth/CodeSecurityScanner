@@ -1,15 +1,21 @@
+# 🛡️ CodeSecurityScanner V2
 
-# Mein Code Scanner
+Ein leistungsstarker, statischer Sicherheits-Scanner für Python-Projekte. Dieses Tool analysiert Quellcode auf Sicherheitslücken wie SQL-Injection, Remote Code Execution (RCE), hardcodierte Secrets und unsichere Konfigurationen.
 
+## ✨ Features
+- **AST-Analyse:** Erkennt gefährliche Funktionsaufrufe (`eval`, `os.system`) durch Struktur-Analyse, nicht nur Textsuche.
+- **Regex-Detection:** Findet Secrets wie Slack-Tokens, AWS-Keys und Passwörter.
+- **Smart Filtering:** Ignoriert Kommentare und gängige Fehlalarme.
+- **Colorized Terminal:** Übersichtliche Ausgabe mit farblichen Schweregraden (Rot/Gelb).
+- **Automated Reporting:** Erstellt einen detaillierten `SicherheitsReport.txt`.
 
-Hey, 
+## 🚀 Installation & Start
+1. Repository klonen:
+2. python3 SecurityScanner.py
+   (zu prüfende Datei muss immer im selben Ordner liegen)
+   
+```bash
 
-Das hier ist mein V1 CodeSecurityScanner.
-Er sucht in Python-Codes nach Schwachstellen und schlägt gleichzeitig Lösungsvorschläge etc. vor.
-
-noch muss man über das Terminal z.B.: (linux): python3 SecurityScanner.py
-
-Interface etc. folgt mit Update Versionen.
-
-:)
-
+git clone
+[https://github.com/RithMyth/CodeSecurityScanner.git]  (https://github.com/RithMyth/CodeSecurityScanner.git)
+ cd CodeSecurityScanner
