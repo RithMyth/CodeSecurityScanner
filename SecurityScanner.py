@@ -1,9 +1,10 @@
-# =================================================
-# SECURITY SCANNER (FULL VERSION + COLORS + FIX)
-# =================================================
+# ==================
+#  SECURITY SCANNER
+# ==================
 import ast
 import re
 import os
+import sys
 from datetime import datetime
 
 # ANSI Farben für das Terminal
@@ -14,7 +15,7 @@ GREEN = "\033[92m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 
-# 1. VOLLSTÄNDIGE GEFAHRENLISTE 
+# 1. GEFAHRENLISTE
 gefahren = {
     # --- 1. CODE AUSFÜHRUNG (RCE) & MALWARE-TRICKS ---
     r"(eval|exec|compile)\s*\(": "KRITISCH: RCE Risiko! LÖSUNG: Nutze ast.literal_eval() für Daten oder Dictionary-Mapping.",
@@ -62,71 +63,92 @@ gefahren = {
     r"input\s*\(": "INFO: Input gefunden. LÖSUNG: Eingaben validieren (Länge/Inhalt)."
 }
 
-# 2. INITIALISIERUNG
-pfad_wahl = input(f"{BOLD}Welchen Pfad willst du checken?: {RESET}")
+# 2. INITIALISIERUNG & CLI-ARGUMENTE
+if len(sys.argv) > 1:
+    pfad_wahl = sys.argv[1]
+else:
+    pfad_wahl = input(f"{BOLD}Welchen Pfad willst du checken?: {RESET}").strip()
+
 dateien_gesamt = 0
 gefahren_gesamt = 0
 report_inhalt = []
 blacklist = [".git", "__pycache__", "venv", ".idea", "node_modules"]
 
-# Pfad-Fix für den Report: Speichert immer im Ordner des Skripts
 skript_ordner = os.path.dirname(os.path.abspath(__file__))
 report_pfad = os.path.join(skript_ordner, "SicherheitsReport.txt")
 
-# 3. SCAN-LOGIK
-if os.path.isdir(pfad_wahl):
-    print(f"\n{CYAN}{BOLD}--- Starte Profi-Analyse für: {pfad_wahl} ---{RESET}")
+# Hilfsfunktion zur Ermittlung des vollen Funktionsnamens im AST
+def get_func_name(node):
+    if isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Attribute):
+        value_name = get_func_name(node.value)
+        return f"{value_name}.{node.attr}" if value_name else node.attr
+    return ""
 
-    for root, dirs, files in os.walk(pfad_wahl):
-        dirs[:] = [d for d in dirs if d not in blacklist]
-        
-        for datei in files:
-            if datei == "SecurityScanner.py": continue
-            if datei.endswith(".py"):
-                dateien_gesamt += 1
-                voller_pfad = os.path.join(root, datei)
-                
-                try:
-                    with open(voller_pfad, "r", encoding="utf-8") as f:
-                        code_inhalt = f.read()
-                        zeilen = code_inhalt.splitlines()
+# Hilfsfunktion zum Scannen einer einzelnen Datei
+def scan_datei(voller_pfad, datei_name):
+    global dateien_gesamt, gefahren_gesamt
+    dateien_gesamt += 1
 
-                        # --- AST-ANALYSE ---
-                        try:
-                            baum = ast.parse(code_inhalt)
-                            for knoten in ast.walk(baum):
-                                if isinstance(knoten, ast.Call):
-                                    f_full_name = ""
-                                    if isinstance(knoten.func, ast.Name): f_full_name = knoten.func.id
-                                    elif isinstance(knoten.func, ast.Attribute):
-                                        f_full_name = f"{knoten.func.value.id}.{knoten.func.attr}" if isinstance(knoten.func.value, ast.Name) else knoten.func.attr
-                                    
-                                    if f_full_name:
-                                        test_call = f"{f_full_name}("
-                                        for muster, warnung in gefahren.items():
-                                            if r"\(" in muster and re.search(muster, test_call):
-                                                gefahren_gesamt += 1
-                                                # Farbe basierend auf Schweregrad
-                                                farbe = RED if any(x in warnung for x in ["KRITISCH", "HOCH"]) else YELLOW
-                                                fund_msg = f"[!] AST-Treffer in {datei} (Zeile {knoten.lineno}):\n   -> Gefahr: {f_full_name}()\n   -> {warnung}"
-                                                print(f"{farbe}{fund_msg}{RESET}")
-                                                report_inhalt.append(fund_msg)
-                                                break
-                        except SyntaxError: pass
+    try:
+        with open(voller_pfad, "r", encoding="utf-8") as f:
+            code_inhalt = f.read()
+            zeilen = code_inhalt.splitlines()
 
-                        # --- REGEX-ANALYSE ---
-                        for zeile_nr, inhalt in enumerate(zeilen, start=1):
-                            if inhalt.strip().startswith("#"): continue
+            # --- AST-ANALYSE ---
+            try:
+                baum = ast.parse(code_inhalt)
+                for knoten in ast.walk(baum):
+                    if isinstance(knoten, ast.Call):
+                        f_full_name = get_func_name(knoten.func)
+                        if f_full_name:
+                            test_call = f"{f_full_name}("
                             for muster, warnung in gefahren.items():
-                                if r"\(" not in muster and re.search(muster, inhalt):
+                                if r"\(" in muster and re.search(muster, test_call):
                                     gefahren_gesamt += 1
                                     farbe = RED if any(x in warnung for x in ["KRITISCH", "HOCH"]) else YELLOW
-                                    fund_msg = f"[!] REGEX-Treffer in {datei} (Zeile {zeile_nr}):\n    -> {warnung}\n    -> Code: {inhalt.strip()}"
+                                    fund_msg = f"[!] AST-Treffer in {datei_name} (Zeile {knoten.lineno}):\n   -> Gefahr: {f_full_name}()\n   -> {warnung}"
                                     print(f"{farbe}{fund_msg}{RESET}")
                                     report_inhalt.append(fund_msg)
+                                    break
+            except SyntaxError:
+                pass  # Ignoriere Dateien mit Syntaxfehlern
 
-                except Exception as e:
-                    print(f"{RED}Fehler in {datei}: {e}{RESET}")
+            # --- REGEX-ANALYSE ---
+            for zeile_nr, inhalt in enumerate(zeilen, start=1):
+                if inhalt.strip().startswith("#"):
+                    continue
+                for muster, warnung in gefahren.items():
+                    # Nur Regex-Regeln ohne Klammer prüfen (Funktionen deckt der AST ab)
+                    if r"\(" not in muster and re.search(muster, inhalt):
+                        gefahren_gesamt += 1
+                        farbe = RED if any(x in warnung for x in ["KRITISCH", "HOCH"]) else YELLOW
+                        fund_msg = f"[!] REGEX-Treffer in {datei_name} (Zeile {zeile_nr}):\n    -> {warnung}\n    -> Code: {inhalt.strip()}"
+                        print(f"{farbe}{fund_msg}{RESET}")
+                        report_inhalt.append(fund_msg)
+
+    except Exception as e:
+        print(f"{RED}Fehler beim Lesen von {datei_name}: {e}{RESET}")
+
+# 3. SCAN-LOGIK (Verarbeitet Dateien UND Ordner)
+if os.path.exists(pfad_wahl):
+    print(f"\n{CYAN}{BOLD}--- Starte Profi-Analyse für: {pfad_wahl} ---{RESET}")
+
+    if os.path.isfile(pfad_wahl):
+        if pfad_wahl.endswith(".py"):
+            scan_datei(pfad_wahl, os.path.basename(pfad_wahl))
+        else:
+            print(f"{YELLOW}Hinweis: Datei ist keine .py Datei.{RESET}")
+    elif os.path.isdir(pfad_wahl):
+        for root, dirs, files in os.walk(pfad_wahl):
+            dirs[:] = [d for d in dirs if d not in blacklist]
+            for datei in files:
+                if datei == "SecurityScanner.py":
+                    continue
+                if datei.endswith(".py"):
+                    voller_pfad = os.path.join(root, datei)
+                    scan_datei(voller_pfad, datei)
 
     # 4. REPORT SPEICHERN
     zeitstempel = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -141,11 +163,11 @@ if os.path.isdir(pfad_wahl):
             report_file.write("DETAILS:\n" + "-" * 50 + "\n")
             for fund in report_inhalt:
                 report_file.write(fund + "\n" + "-" * 50 + "\n")
-        
+
         print(f"\n{GREEN}{BOLD}[OK] Scan abgeschlossen. {gefahren_gesamt} Risiken gefunden.{RESET}")
-        print(f"{CYAN}Bericht wurde hier gespeichert: {report_pfad}{RESET}")
+        print(f"{CYAN}Bericht gespeichert unter: {report_pfad}{RESET}")
 
     except Exception as e:
-        print(f"{RED}Fehler beim Speichern: {e}{RESET}")
+        print(f"{RED}Fehler beim Speichern des Reports: {e}{RESET}")
 else:
-    print(f"{RED}Pfad nicht gefunden.{RESET}")
+    print(f"{RED}Pfad '{pfad_wahl}' existiert nicht.{RESET}")
