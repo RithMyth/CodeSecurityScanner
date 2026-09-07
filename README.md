@@ -1,4 +1,4 @@
-# 🛡️ CodeSecurityScanner 
+# 🛡️ CodeSecurityScanner V2.0
 
 Ein leistungsstarker, statischer Sicherheits-Scanner (SAST) für Python-Projekte. Das Tool analysiert Quellcode und Ordnerstrukturen auf kritische Schwachstellen wie Remote Code Execution (RCE), SQL-Injection, hardcodierte Secrets und unbewusste Fehlkonfigurationen.
 
